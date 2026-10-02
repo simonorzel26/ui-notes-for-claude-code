@@ -4,7 +4,9 @@ Leave notes on your running app, then let Claude Code work through them in one g
 
 Hold Option on any page served from localhost, click the element you mean, and write what should change. Each note is saved with the page URL, the element's selector and HTML, and in React dev builds the component names and the file and line that rendered it. When you're done, tell Claude Code "done with my notes". It takes the whole batch, finds the code behind each element and reports back per note.
 
-![Writing a note on a button](docs/add-note.png)
+![Holding Option highlights the element under the pointer](docs/hover.png)
+
+![Option-click opens a note on that element](docs/add-note.png)
 
 A pill in the bottom right corner counts the notes waiting. Click it to read, edit or delete them.
 

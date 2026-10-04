@@ -1,6 +1,6 @@
-// Hold Option on any localhost page: the element under the pointer is highlighted the way Chrome's
-// element picker does it. Click it to leave a note; the note goes to ~/.ui-notes/queue.jsonl. A pill
-// in the corner counts the queue and opens it to read, edit and delete notes.
+// Hold Option on any page: the element under the pointer is highlighted the way Chrome's element
+// picker does it. Click it to leave a note; the note goes to this site's queue in ~/.ui-notes. Once
+// the site has notes, a pill in the corner counts them and opens them to read, edit and delete.
 (() => {
   // A copy left behind by an extension reload still has its pill on the page.
   for (const stale of document.querySelectorAll('[data-ui-notes="pill"]')) stale.remove();
@@ -63,10 +63,11 @@
   globalThis.uiNotesTeardown = teardown;
 
   // After the extension reloads, this copy can no longer save notes: it removes itself and the
-  // freshly injected copy takes over.
+  // freshly injected copy takes over. Any site can dispatch a fake Option-click, so only the user's
+  // own input counts.
   const on = (type, handle) => {
     const listener = (e) => {
-      if (chrome.runtime?.id) return ours(e) ? undefined : handle(e);
+      if (chrome.runtime?.id) return ours(e) || !e.isTrusted ? undefined : handle(e);
       teardown();
     };
     listening.push([type, listener]);
@@ -97,9 +98,15 @@
 
   const noteCount = (count) => (count === 1 ? "1 note" : `${count} notes`);
 
+  // Empty, the pill hides, so sites without notes carry nothing in their corner.
+  const pillText = (reply, failure) => {
+    if (!reply.ok) return `${failure}: ${reply.error}`;
+    return reply.notes.length ? noteCount(reply.notes.length) : "";
+  };
+
   const showReply = (reply, failure) => {
     pill.className = reply.ok ? "" : "error";
-    pill.textContent = reply.ok ? noteCount(reply.notes.length) : `${failure}: ${reply.error}`;
+    pill.textContent = pillText(reply, failure);
     return reply;
   };
 
@@ -268,12 +275,13 @@
     const { root, dialog } = modal(
       LIST_CSS,
       `<div class="sheet">
-        <header><div><h2></h2><span>Waiting in ~/.ui-notes/queue.jsonl until Claude takes them</span></div>
+        <header><div><h2></h2><span></span></div>
           <button type="button" value="close">Close</button></header>
         <ol></ol>
-        <p class="empty">No notes in the queue. Hold Option and click an element to add one.</p>
+        <p class="empty">No notes on this site. Hold Option and click an element to add one.</p>
       </div>`,
     );
+    root.querySelector("header span").textContent = `Left on ${location.hostname}, waiting until Claude takes them`;
     const heading = root.querySelector("h2");
     const update = (next) => {
       showReply(next, "UI notes");

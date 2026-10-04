@@ -2,20 +2,20 @@
 
 Leave notes on your running app, then let Claude Code work through them in one go.
 
-Hold Option on any page served from localhost, click the element you mean, and write what should change. Each note is saved with the page URL, the element's selector and HTML, and in React dev builds the component names and the file and line that rendered it. When you're done, tell Claude Code "done with my notes". It takes the whole batch, finds the code behind each element and reports back per note.
+Hold Option on any page, your localhost app or a live site, click the element you mean, and write what should change. Each note is saved with the page URL, the element's selector and HTML, and in React dev builds the component names and the file and line that rendered it. When you're done, tell Claude Code "done with my notes". It takes the whole batch, finds the code behind each element and reports back per note.
 
 ![Holding Option highlights the element under the pointer](docs/hover.png)
 
 ![Option-click opens a note on that element](docs/add-note.png)
 
-A pill in the bottom right corner counts the notes waiting. Click it to read, edit or delete them.
+Each site keeps its own notes, so notes on your localhost app never mix with notes on a live site. Once a site has notes, a pill in the bottom right corner counts them. Click it to read, edit or delete them.
 
 ![The list of waiting notes](docs/notes-list.png)
 
 ## What it runs on
 
 - **Google Chrome on macOS.** The setup script registers the native host where Chrome on macOS looks for it.
-- **Pages on `localhost` and `127.0.0.1`**, any port. No other site gets the script.
+- **Any `http` or `https` page.** Notes are kept per hostname: all ports of one host share a queue (`localhost:3000` and `localhost:3026` are one site), while `localhost`, `127.0.0.1` and `example.com` are three.
 - **[Bun](https://bun.sh)**, which runs the small native host that writes the notes file. A Chrome extension cannot write files by itself.
 - **Claude Code**, through the bundled skill. The notes are plain JSON lines, so any agent that can read a file can use them too.
 
@@ -44,18 +44,18 @@ A pill in the bottom right corner counts the notes waiting. Click it to read, ed
    mkdir -p ~/.claude/skills && ln -s "$PWD/skill" ~/.claude/skills/ui-notes
    ```
 
-5. Open any localhost page. If the bottom right corner says **0 notes**, it works.
+5. Open any page, hold Option and click an element, and save a test note. If the bottom right corner says **1 note**, it works. Click it and delete the note again.
 
 ## Use
 
 - **Hold Option.** The element under the pointer is highlighted with its tag, classes and size, like Chrome's element picker.
 - **Option-click it.** The click never reaches the page, so buttons don't fire and links don't open. Write the note; paragraphs are fine. Cmd+Enter saves, Esc cancels.
-- **Click the pill** to see every waiting note, as tall as the window. Edit changes a note in place (Cmd+Enter saves, Esc leaves the edit). Delete asks for a second click. The link opens the page the note was left on.
-- **Tell Claude Code "done with my notes".** The skill first moves `~/.ui-notes/queue.jsonl` to `~/.ui-notes/batches/<timestamp>.jsonl`, so anything you add while Claude works starts a new queue. Then it makes the changes and reports per note. The pill drops back to 0 the next time you switch to the window.
+- **Click the pill** to see every note waiting for this site, as tall as the window. Edit changes a note in place (Cmd+Enter saves, Esc leaves the edit). Delete asks for a second click. The link opens the page the note was left on.
+- **Tell Claude Code "done with my notes"**, and which site if more than one has notes (Claude asks otherwise). The skill first moves that site's `queue.jsonl` into its `batches/` folder under a timestamp, so anything you add while Claude works starts a new queue. Then it makes the changes and reports per note. The pill disappears the next time you switch to the window.
 
 ## What a note holds
 
-One JSON object per line in `~/.ui-notes/queue.jsonl`:
+One JSON object per line in `~/.ui-notes/sites/<hostname>/queue.jsonl`:
 
 | Field | Content |
 | --- | --- |
@@ -70,10 +70,10 @@ Your notes stay on your machine. The extension makes no network requests, and th
 
 ## How it works
 
-- `extension/content.js` runs on localhost pages. It draws the highlight, the note modal, the pill and the list, each inside a closed shadow root so the app's CSS can't restyle them and the app's scripts can't read them.
+- `extension/content.js` runs on every page. It draws the highlight, the note modal, the pill and the list, each inside a closed shadow root so the page's CSS can't restyle them and the page's scripts can't read them. It ignores clicks and keys the page fakes, so a site cannot open the note modal by itself.
 - `extension/react.js` runs in the page's own JavaScript world, where React keeps the dev info (`__reactFiber$…`, `_debugStack`) that content scripts can't see.
-- `extension/background.js` passes each request on to the native host, because content scripts cannot talk to one.
-- `host.ts` is the native messaging host. Chrome starts it once per request; it adds, lists, edits or deletes notes and replies with the whole queue, so the count and the list always match the file. One more copy runs while Chrome is open and watches `extension/`: edit a file there and the extension reloads itself and re-injects into open localhost tabs.
+- `extension/background.js` passes each request on to the native host, because content scripts cannot talk to one. It adds the site, which it takes from the hostname Chrome reports for the sending tab, so a page only ever sees and changes its own site's notes.
+- `host.ts` is the native messaging host. Chrome starts it once per request; it adds, lists, edits or deletes notes in that site's queue and replies with the site's whole queue, so the count and the list always match the file. One more copy runs while Chrome is open and watches `extension/`: edit a file there and the extension reloads itself and re-injects into open tabs.
 
 ## Troubleshooting
 

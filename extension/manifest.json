@@ -1,33 +1,18 @@
 {
   "manifest_version": 3,
   "name": "UI notes for Claude Code",
-  "version": "1.1",
-  "description": "Hold Option on a localhost page, click an element, and leave a note for Claude Code.",
+  "version": "1.2",
+  "description": "Hold Option on any page, click an element, and leave a note for Claude Code.",
   "permissions": ["nativeMessaging", "scripting"],
-  "host_permissions": [
-    "http://localhost/*",
-    "https://localhost/*",
-    "http://127.0.0.1/*",
-    "https://127.0.0.1/*"
-  ],
+  "host_permissions": ["http://*/*", "https://*/*"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
-      "matches": [
-        "http://localhost/*",
-        "https://localhost/*",
-        "http://127.0.0.1/*",
-        "https://127.0.0.1/*"
-      ],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["content.js"]
     },
     {
-      "matches": [
-        "http://localhost/*",
-        "https://localhost/*",
-        "http://127.0.0.1/*",
-        "https://127.0.0.1/*"
-      ],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["react.js"],
       "world": "MAIN"
     }
